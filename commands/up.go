@@ -5,7 +5,15 @@ package commands
 
 import (
 	"fmt"
+	"log"
+	"os"
+	"os/signal"
+	"path/filepath"
+	"syscall"
+	"time"
 
+	"github.com/bep/debounce"
+	"github.com/fsnotify/fsnotify"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
@@ -13,6 +21,7 @@ import (
 var (
 	skipPush   bool
 	skipDeploy bool
+	watch      bool
 )
 
 func init() {
@@ -20,6 +29,7 @@ func init() {
 	upFlagset := pflag.NewFlagSet("up", pflag.ExitOnError)
 	upFlagset.BoolVar(&skipPush, "skip-push", false, "Skip pushing function to remote registry")
 	upFlagset.BoolVar(&skipDeploy, "skip-deploy", false, "Skip function deployment")
+	upFlagset.BoolVar(&watch, "watch", false, "Watch for changes in files and re-deploy")
 	upCmd.Flags().AddFlagSet(upFlagset)
 
 	build, _, _ := faasCmd.Find([]string{"build"})
@@ -64,20 +74,87 @@ func preRunUp(cmd *cobra.Command, args []string) error {
 }
 
 func upHandler(cmd *cobra.Command, args []string) error {
-	if err := runBuild(cmd, args); err != nil {
+	handler := upRunner(cmd, args)
+	if err := handler(); err != nil {
 		return err
 	}
-	fmt.Println()
-	if !skipPush {
-		if err := runPush(cmd, args); err != nil {
+
+	if watch {
+		logger := log.New(os.Stderr, "", log.LstdFlags)
+		logger.SetFlags(log.Ldate | log.Ltime | log.LUTC)
+
+		watcher, err := fsnotify.NewWatcher()
+		if err != nil {
 			return err
 		}
-		fmt.Println()
-	}
-	if !skipDeploy {
-		if err := runDeploy(cmd, args); err != nil {
+		defer watcher.Close()
+
+		err = filepath.Walk("./", func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return err
+			}
+			if info.IsDir() {
+				return watcher.Add(path)
+			}
+			return nil
+		})
+
+		if err != nil {
 			return err
+		}
+
+		signalChannel := make(chan os.Signal, 1)
+		signal.Notify(signalChannel, os.Interrupt, syscall.SIGTERM)
+
+		d := debounce.New(5 * time.Second)
+
+		for {
+			select {
+			case event, ok := <-watcher.Events:
+				if !ok {
+					return fmt.Errorf("watcher's Events channel is closed")
+				}
+
+				if event.Op == fsnotify.Write {
+					d(func() {
+						if err := handler(); err != nil {
+							logger.Printf("%s %s", functionName, err)
+						}
+					})
+				}
+
+			case err, ok := <-watcher.Errors:
+				if !ok {
+					return fmt.Errorf("watcher's Errors channel is closed")
+				}
+				return err
+
+			case <-signalChannel:
+				watcher.Close()
+				return nil
+			}
 		}
 	}
 	return nil
+}
+
+func upRunner(cmd *cobra.Command, args []string) func() error {
+	return func() error {
+		if err := runBuild(cmd, args); err != nil {
+			return err
+		}
+
+		if !skipPush {
+			if err := runPush(cmd, args); err != nil {
+				return err
+			}
+		}
+
+		if !skipDeploy {
+			if err := runDeploy(cmd, args); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
 }
