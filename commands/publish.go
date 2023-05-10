@@ -19,11 +19,12 @@ import (
 )
 
 var (
-	platforms     string
-	extraTags     []string
-	resetQemu     bool
-	mountSSH      bool
-	remoteBuilder string
+	platforms         string
+	extraTags         []string
+	resetQemu         bool
+	mountSSH          bool
+	remoteBuilder     string
+	payloadSecretPath string
 )
 
 func init() {
@@ -50,6 +51,7 @@ func init() {
 	publishCmd.Flags().StringArrayVar(&extraTags, "extra-tag", []string{}, "Additional extra image tag")
 	publishCmd.Flags().BoolVar(&resetQemu, "reset-qemu", false, "Runs \"docker run multiarch/qemu-user-static --reset -p yes\" to enable multi-arch builds. Compatible with AMD64 machines only.")
 	publishCmd.Flags().StringVar(&remoteBuilder, "remote-builder", "", "URL to the builder")
+	publishCmd.Flags().StringVar(&payloadSecretPath, "payload-secret", "", "Path to payload secret file")
 
 	// Set bash-completion.
 	_ = publishCmd.Flags().SetAnnotation("handler", cobra.BashCompSubdirsInDir, []string{})
@@ -242,6 +244,7 @@ func publish(services *stack.Services, queueDepth int, shrinkwrap, quietBuild, m
 						platforms,
 						extraTags,
 						remoteBuilder,
+						payloadSecretPath,
 					)
 
 					if err != nil {

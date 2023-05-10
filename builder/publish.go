@@ -15,7 +15,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"os/exec"
 	"path"
 	"path/filepath"
 	"strings"
@@ -43,7 +42,7 @@ const ConfigFileName = "com.openfaas.docker.config"
 // PublishImage will publish images as multi-arch
 // TODO: refactor signature to a struct to simplify the length of the method header
 func PublishImage(image string, handler string, functionName string, language string, nocache bool, squash bool, shrinkwrap bool, buildArgMap map[string]string,
-	buildOptions []string, tagMode schema.BuildFormat, buildLabelMap map[string]string, quietBuild bool, copyExtraPaths []string, platforms string, extraTags []string, remoteBuilder string) error {
+	buildOptions []string, tagMode schema.BuildFormat, buildLabelMap map[string]string, quietBuild bool, copyExtraPaths []string, platforms string, extraTags []string, remoteBuilder, payloadSecretPath string) error {
 
 	if stack.IsValidTemplate(language) {
 		pathToTemplateYAML := fmt.Sprintf("./template/%s/template.yml", language)
@@ -82,12 +81,6 @@ func PublishImage(image string, handler string, functionName string, language st
 			logger := log.New(os.Stderr, "", log.LstdFlags)
 			logger.SetFlags(log.Ldate | log.Ltime | log.LUTC)
 
-			cmd := exec.Command("sh", "-c", "kubectl get secret -n openfaas payload-secret -o jsonpath='{.data.payload-secret}' | base64 --decode > payload.txt")
-			err := cmd.Run()
-			if err != nil {
-				return err
-			}
-
 			tempDir, err := os.MkdirTemp(os.TempDir(), "builder-*")
 			if err != nil {
 				logger.Printf("%s %s", functionName, err)
@@ -103,7 +96,7 @@ func PublishImage(image string, handler string, functionName string, language st
 				return err
 			}
 
-			res, err := callBuilder(logger, tarPath, tempPath, remoteBuilder, functionName)
+			res, err := callBuilder(logger, tarPath, tempPath, remoteBuilder, functionName, payloadSecretPath)
 			if err != nil {
 				logger.Printf("%s failed to call builder API: %s", functionName, err)
 				return err
@@ -261,9 +254,9 @@ func makeTar(buildConfig buildConfig, base, tarPath string) error {
 	return err
 }
 
-func callBuilder(logger *log.Logger, tarPath, tempPath, builderAddress, functionName string) (*http.Response, error) {
+func callBuilder(logger *log.Logger, tarPath, tempPath, builderAddress, functionName, payloadSecretPath string) (*http.Response, error) {
 
-	payloadSecret, err := os.ReadFile("payload.txt")
+	payloadSecret, err := os.ReadFile(payloadSecretPath)
 	if err != nil {
 		return nil, err
 	}
