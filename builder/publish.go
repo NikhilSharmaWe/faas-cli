@@ -107,7 +107,7 @@ func PublishImage(image string, handler string, functionName string, language st
 			}
 
 			for _, logMsg := range result.Log {
-				fmt.Printf("%s\n", logMsg)
+				fmt.Printf("\t%s\n", logMsg)
 			}
 
 			if res.StatusCode != http.StatusOK && res.StatusCode != http.StatusAccepted {
