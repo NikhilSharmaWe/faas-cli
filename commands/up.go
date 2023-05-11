@@ -4,15 +4,18 @@
 package commands
 
 import (
+	"bufio"
 	"fmt"
 	"log"
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
 	"github.com/bep/debounce"
+
 	"github.com/fsnotify/fsnotify"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -89,17 +92,32 @@ func upHandler(cmd *cobra.Command, args []string) error {
 		}
 		defer watcher.Close()
 
-		err = filepath.Walk("./", func(path string, info os.FileInfo, err error) error {
+		patterns, err := ignorePatterns()
+		if err != nil {
+			return err
+		}
+
+		if err = filepath.Walk("./", func(path string, info os.FileInfo, err error) error {
 			if err != nil {
 				return err
 			}
+
+			for _, pattern := range patterns {
+				match, err := filepath.Match(pattern, path)
+				if err != nil {
+					return err
+				}
+
+				if match {
+					return filepath.SkipDir
+				}
+			}
+
 			if info.IsDir() {
 				return watcher.Add(path)
 			}
 			return nil
-		})
-
-		if err != nil {
+		}); err != nil {
 			return err
 		}
 
@@ -157,4 +175,31 @@ func upRunner(cmd *cobra.Command, args []string) func() error {
 		}
 		return nil
 	}
+}
+
+func ignorePatterns() ([]string, error) {
+	gitignorePath := ".gitignore"
+	patterns := []string{".git"}
+
+	file, err := os.Open(gitignorePath)
+	if err != nil {
+		return nil, err
+	}
+
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		patterns = append(patterns, line)
+	}
+
+	if err := scanner.Err(); err != nil {
+		return nil, err
+	}
+
+	return patterns, nil
 }
