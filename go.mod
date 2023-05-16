@@ -26,6 +26,9 @@ require (
 
 require (
 	github.com/alexellis/hmac/v2 v2.0.0
+	github.com/bep/debounce v1.2.1
+	github.com/fsnotify/fsnotify v1.6.0
+	github.com/go-git/go-git/v5 v5.6.1
 	github.com/google/go-containerregistry v0.13.0
 	github.com/mitchellh/go-wordwrap v1.0.1
 )
@@ -33,15 +36,18 @@ require (
 require (
 	github.com/Azure/go-ansiterm v0.0.0-20210617225240-d185dfc1b5a1 // indirect
 	github.com/VividCortex/ewma v1.2.0 // indirect
+	github.com/acomagu/bufpipe v1.0.4 // indirect
 	github.com/cheggaaa/pb/v3 v3.1.0 // indirect
 	github.com/containerd/stargz-snapshotter/estargz v0.12.1 // indirect
 	github.com/docker/cli v20.10.20+incompatible // indirect
 	github.com/docker/distribution v2.8.2+incompatible // indirect
 	github.com/docker/docker-credential-helpers v0.7.0 // indirect
 	github.com/fatih/color v1.13.0 // indirect
+	github.com/go-git/gcfg v1.5.0 // indirect
+	github.com/go-git/go-billy/v5 v5.4.1 // indirect
 	github.com/inconshreveable/mousetrap v1.0.1 // indirect
+	github.com/jbenet/go-context v0.0.0-20150711004518-d14ea06fba99 // indirect
 	github.com/klauspost/compress v1.15.11 // indirect
-	github.com/kr/text v0.2.0 // indirect
 	github.com/mattn/go-colorable v0.1.12 // indirect
 	github.com/mattn/go-isatty v0.0.14 // indirect
 	github.com/mattn/go-runewidth v0.0.13 // indirect
@@ -55,4 +61,8 @@ require (
 	github.com/vbatts/tar-split v0.11.2 // indirect
 	golang.org/x/sync v0.1.0 // indirect
 	golang.org/x/sys v0.5.0 // indirect
+	golang.org/x/net v0.7.0 // indirect
+	golang.org/x/sync v0.2.0 // indirect
+	golang.org/x/sys v0.8.0 // indirect
+	gopkg.in/warnings.v0 v0.1.2 // indirect
 )
